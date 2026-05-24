@@ -238,9 +238,6 @@ RealTimeSignLanguageTranslation/
 ## 👨‍💻 Author
 * Chethan G S
 
-Final Year Engineering Project
-Department of Computer Science & Engineering
-
 ---
 
 ## 📜 License
@@ -257,6 +254,4 @@ Feel free to fork this repository and submit pull requests.
 
 ---
 
-## 🌟 Acknowledgement
 
-We sincerely thank our guide **Deepa Srinivasa** for her valuable guidance and support throughout the project development.
