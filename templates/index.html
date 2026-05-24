@@ -1,0 +1,124 @@
+{% extends "layout.html" %}
+
+{% block title %}Home - ISL Translator{% endblock %}
+
+{% block content %}
+    <!-- 1. NAVBAR -->
+    <div class="navbar">
+        <div class="logo-text"><i class="fas fa-sign-language"></i> ISL Translator</div>
+        <div class="nav-links">
+            <div class="system-status"><div class="status-dot"></div> Online</div>
+            <a href="{{ url_for('index') }}" class="active">Home</a>
+            <a href="{{ url_for('sign_recognition') }}">Recognition</a>
+            <a href="{{ url_for('converter') }}">Avatar</a>
+            <a href="{{ url_for('dictionary') }}">Dictionary</a>
+            <a href="{{ url_for('history') }}">History</a>
+            <button class="nav-icon-btn" onclick="toggleFullScreen()"><i class="fas fa-expand"></i></button>
+            <button class="theme-btn" id="theme-toggle" onclick="toggleTheme()"><i class="fas fa-moon"></i></button>
+        </div>
+    </div>
+
+    <!-- 2. MAIN CONTENT -->
+    <div class="page-content">
+        
+        <div class="title-container">
+            <h1 class="main-title">Real-Time ISL Translation</h1>
+            <p style="color: var(--text-muted); font-size: 18px; margin-top: 10px;">Bridging the communication gap with Artificial Intelligence</p>
+            
+            <!-- STATS BADGES -->
+            <div style="display: flex; justify-content: center; gap: 20px; margin-top: 25px;">
+                <div class="stat-badge">
+                    <i class="fas fa-database"></i>
+                    <span>Total Translations: <b>{{ total_translations }}</b></span>
+                </div>
+                <div class="stat-badge">
+                    <i class="fas fa-check-circle"></i>
+                    <span>System Status: <b>Ready</b></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="squares-container">
+            <!-- Card 1 -->
+            <div class="feature-card">
+                <div>
+                    <i class="fas fa-hands-asl-interpreting feature-icon"></i>
+                    <h2>Sign to Text</h2>
+                    <p>Translate real-time hand gestures into text instantly using our advanced Computer Vision model.</p>
+                </div>
+                <a href="{{ url_for('sign_recognition') }}" class="circle-arrow"><i class="fas fa-arrow-right"></i></a>
+            </div>
+            <!-- Card 2 -->
+            <div class="feature-card">
+                <div>
+                    <i class="fas fa-robot feature-icon"></i>
+                    <h2>Text to Sign</h2>
+                    <p>Type text or use voice commands to see our 3D Avatar interpret your words into Indian Sign Language.</p>
+                </div>
+                <a href="{{ url_for('converter') }}" class="circle-arrow"><i class="fas fa-arrow-right"></i></a>
+            </div>
+        </div>
+
+        <!-- LIVE SYSTEM TERMINAL (Restored & Centered) -->
+        <div class="terminal-window">
+            <div class="terminal-header">
+                <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+                <span style="color: #999; font-size: 12px; margin-left: 10px;">system_core.log</span>
+            </div>
+            <div class="terminal-body" id="sys-log">
+                <!-- Logs appear here via JS -->
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Help & Modal -->
+    <div class="help-btn" onclick="toggleHelp()"><i class="fas fa-question"></i></div>
+    <div id="help-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h2 style="color: var(--primary); margin-top: 0;"><i class="fas fa-info-circle"></i> User Guide</h2>
+            <hr style="border-color: var(--glass-border); margin: 15px 0;">
+            <div class="guide-step"><h4>1. Sign to Text</h4><p>Ensure good lighting. Hold sign for 2 seconds.</p></div>
+            <div class="guide-step"><h4>2. Text to Sign</h4><p>Type sentence or use Mic. Watch the Avatar.</p></div>
+            <button class="btn-3d btn-red" onclick="toggleHelp()" style="width: 100%; margin-top: 10px;">Close</button>
+        </div>
+    </div>
+
+    <script>
+        function toggleHelp() {
+            const modal = document.getElementById('help-modal');
+            modal.style.display = (modal.style.display === 'flex') ? 'none' : 'flex';
+        }
+        window.onclick = function(event) {
+            const modal = document.getElementById('help-modal');
+            if (event.target == modal) modal.style.display = "none";
+        }
+
+        // --- SYSTEM LOGS ANIMATION ---
+        const logs = [
+            "Initializing Neural Network... [OK]",
+            "Connecting to SQLite Database... [OK]",
+            "Loading 'THE_FINAL_MODEL.h5'... [DONE]",
+            "GPU Acceleration: Not Detected (Using CPU)",
+            "Web Speech API: Ready",
+            "Waiting for user input...",
+            "System Monitor: Active"
+        ];
+        const logBox = document.getElementById('sys-log');
+        let i = 0;
+
+        function addLog() {
+            if (i < logs.length) {
+                const now = new Date().toLocaleTimeString();
+                const div = document.createElement('div');
+                div.className = 'log-entry';
+                div.innerHTML = `<span class="timestamp">[${now}]</span> ${logs[i]}`;
+                logBox.appendChild(div);
+                logBox.scrollTop = logBox.scrollHeight;
+                i++;
+                setTimeout(addLog, 800);
+            }
+        }
+        window.onload = addLog;
+    </script>
+{% endblock %}

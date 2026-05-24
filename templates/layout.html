@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}ISL Translation System{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    
+    <!-- Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    {% block content %}{% endblock %}
+
+    <!-- GLOBAL SCRIPTS -->
+    <script>
+        // 1. Dark Mode Logic
+        const themeBtn = document.getElementById('theme-toggle');
+        const body = document.body;
+        if(localStorage.getItem('theme') === 'dark'){
+            body.classList.add('dark-mode');
+            if(themeBtn) themeBtn.innerHTML = '<i class="fas fa-sun"></i>';
+        }
+
+        function toggleTheme() {
+            body.classList.toggle('dark-mode');
+            const btn = document.getElementById('theme-toggle');
+            if(body.classList.contains('dark-mode')){
+                localStorage.setItem('theme', 'dark');
+                if(btn) btn.innerHTML = '<i class="fas fa-sun"></i>';
+            } else {
+                localStorage.setItem('theme', 'light');
+                if(btn) btn.innerHTML = '<i class="fas fa-moon"></i>';
+            }
+        }
+
+        // 2. Fullscreen Logic
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    showToast("Error enabling fullscreen", "error");
+                });
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        }
+
+        // 3. Toast Notification Logic (Replaces Alert)
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            
+            let icon = type === 'success' ? 'check-circle' : 'exclamation-circle';
+            
+            toast.innerHTML = `<i class="fas fa-${icon}"></i> <span>${message}</span>`;
+            
+            container.appendChild(toast);
+
+            // Remove after 3 seconds
+            setTimeout(() => {
+                toast.style.animation = "fadeOut 0.5s forwards";
+                setTimeout(() => {
+                    toast.remove();
+                }, 500);
+            }, 3000);
+        }
+
+        // 4. Text Resizer Logic
+        let currentSize = 100;
+        function resizeText(dir) {
+            if(dir === 'up') currentSize += 10;
+            if(dir === 'down') currentSize -= 10;
+            if(dir === 'reset') currentSize = 100;
+            document.body.style.fontSize = currentSize + "%";
+        }
+    </script>
+    <!-- Inside templates/layout.html -->
+
+    <!-- [Your existing scripts] -->
+
+    <!-- FOOTER -->
+    <footer class="app-footer">
+        <p>&copy; 2025 <span>ISL Tech</span>. Empowering Communication with AI.</p>
+        <p style="font-size: 11px; opacity: 0.7;">Developed for Final Year Project • Computer Vision • NLP</p>
+    </footer>
+</body>
+</html>
+</body>
+</html>

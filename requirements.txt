@@ -1,0 +1,9 @@
+tensorflow==2.16.1
+mediapipe==0.10.14
+Flask==3.0.3
+numpy==1.26.4
+protobuf>=4.25.3
+opencv-contrib-python==4.9.0.80
+attrs==23.2.0
+sounddevice==0.4.6
+ml-dtypes==0.3.2

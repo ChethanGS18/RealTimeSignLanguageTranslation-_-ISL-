@@ -1,0 +1,99 @@
+{% extends "layout.html" %}
+
+{% block title %}ISL Dictionary{% endblock %}
+
+{% block content %}
+    <div class="navbar">
+        <div class="logo-text"><i class="fas fa-book-open"></i> Learn ISL</div>
+        <div class="nav-links">
+            <a href="{{ url_for('index') }}">Home</a>
+            <a href="{{ url_for('sign_recognition') }}">Recognition</a>
+            <a href="{{ url_for('converter') }}">Avatar</a>
+            <a href="{{ url_for('dictionary') }}" class="active">Dictionary</a>
+        </div>
+    </div>
+
+    <div class="page-content">
+        <div class="title-container">
+            <h1 class="main-title">Sign Language Library</h1>
+            <p style="color: #636e72;">Explore and learn the gestures used in our AI model.</p>
+        </div>
+
+        <!-- TABS -->
+        <div class="d-flex justify-content-center mb-4" style="text-align: center; margin-bottom: 30px;">
+            <button class="btn-3d btn-blue" onclick="showTab('alphas')" style="margin: 0 10px; width: 150px;">Alphabets</button>
+            <button class="btn-3d btn-green" onclick="showTab('wrds')" style="margin: 0 10px; width: 150px;">Words</button>
+        </div>
+
+        <!-- ALPHABETS GRID -->
+        <div id="alphas" class="dictionary-grid">
+            {% for img in alphabets %}
+            <div class="dict-card">
+                <div class="card-media">
+                    <img src="{{ url_for('static', filename='assets/' + img) }}" loading="lazy">
+                </div>
+                <h3>{{ img.split('.')[0].upper() }}</h3>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- WORDS GRID -->
+        <div id="wrds" class="dictionary-grid" style="display: none;">
+            {% for vid in words %}
+            <div class="dict-card">
+                <div class="card-media">
+                    <video controls loading="lazy">
+                        <source src="{{ url_for('static', filename='assets/' + vid) }}" type="video/mp4">
+                    </video>
+                </div>
+                <h3>{{ vid.split('.')[0].upper() }}</h3>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <style>
+        .dictionary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 25px;
+            padding: 0 40px;
+        }
+        .dict-card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            overflow: hidden;
+            transition: transform 0.3s;
+            text-align: center;
+        }
+        .dict-card:hover { transform: translateY(-5px); }
+        .card-media {
+            height: 180px;
+            width: 100%;
+            background: #f8f9fa;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-bottom: 2px solid #eee;
+        }
+        .card-media img, .card-media video {
+            max-width: 100%;
+            max-height: 100%;
+        }
+        .dict-card h3 {
+            padding: 15px;
+            font-size: 18px;
+            color: #2d3436;
+            margin: 0;
+            font-weight: 700;
+        }
+    </style>
+
+    <script>
+        function showTab(id) {
+            document.getElementById('alphas').style.display = (id === 'alphas') ? 'grid' : 'none';
+            document.getElementById('wrds').style.display = (id === 'wrds') ? 'grid' : 'none';
+        }
+    </script>
+{% endblock %}

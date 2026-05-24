@@ -1,0 +1,115 @@
+{% extends "layout.html" %}
+
+{% block title %}History{% endblock %}
+
+{% block content %}
+    <div class="navbar">
+        <div class="logo-text"><i class="fas fa-sign-language"></i> ISL Translator</div>
+        <div class="nav-links">
+            <a href="{{ url_for('index') }}">Home</a>
+            <a href="{{ url_for('sign_recognition') }}">Recognition</a>
+            <a href="{{ url_for('converter') }}">Avatar</a>
+            <a href="{{ url_for('dictionary') }}">Dictionary</a>
+            <a href="{{ url_for('history') }}" class="active">History</a>
+            <button class="theme-btn" id="theme-toggle" onclick="toggleTheme()"><i class="fas fa-moon"></i></button>
+        </div>
+    </div>
+
+    <div class="page-content">
+        <div class="title-container">
+            <h1 class="main-title">Session History</h1>
+        </div>
+        
+        <div style="background: var(--card-bg); padding: 30px; border-radius: 16px; box-shadow: var(--shadow); border: var(--border);">
+            <table style="width: 100%; border-collapse: collapse; color: var(--text-main);">
+                <thead>
+                    <tr style="border-bottom: 2px solid var(--border); text-align: left;">
+                        <th style="padding: 15px;">Saved Sentence</th>
+                        <th style="padding: 15px;">Timestamp</th>
+                        <!-- UPDATED: Centered Action Header -->
+                        <th style="padding: 15px; text-align: center; width: 100px;" class="no-print">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if history_data %}
+                        {% for row in history_data %}
+                        <tr style="border-bottom: 1px solid var(--border);">
+                            <td style="padding: 15px; font-weight: 500;">
+                                <!-- Copy Feature -->
+                                <span onclick="copyText('{{ row[1] }}')" style="cursor: pointer; border-bottom: 1px dashed var(--text-muted);" title="Click to Copy">
+                                    {{ row[1] }}
+                                </span>
+                            </td>
+                            <td style="padding: 15px; color: var(--text-muted);">{{ row[2] }}</td>
+                            
+                            <!-- UPDATED: Centered Button Cell -->
+                            <td style="padding: 15px; text-align: center;" class="no-print">
+                                <button onclick="deleteItem({{ row[0] }})" class="btn-icon-only" title="Delete Entry">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr><td colspan="3" style="padding: 20px; text-align: center;">No history found.</td></tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+
+        <div style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 15px;">
+            <button onclick="printReport()" class="btn-3d btn-green" style="width: auto;">
+                <i class="fas fa-print"></i> Print
+            </button>
+            <button onclick="downloadCSV()" class="btn-3d btn-blue" style="width: auto;">
+                <i class="fas fa-download"></i> CSV
+            </button>
+            <button id="clear-history-btn" class="btn-3d btn-red" style="width: auto;">
+                <i class="fas fa-trash"></i> Clear All
+            </button>
+        </div>
+    </div>
+
+    <script>
+        function deleteItem(id) {
+            if(confirm('Delete this entry?')) {
+                fetch(`/delete_item/${id}`, {method:'POST'})
+                .then(r => r.json())
+                .then(d => { showToast("Item Deleted", "info"); location.reload(); });
+            }
+        }
+
+        function copyText(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showToast("Copied to Clipboard!", "success");
+            });
+        }
+
+        function printReport() {
+            window.print();
+        }
+
+        document.getElementById('clear-history-btn').onclick = function() { 
+            if(confirm('Clear ALL history?')) fetch('/clear_history', {method:'POST'}).then(()=>location.reload()); 
+        };
+
+        function downloadCSV() { 
+            let csv_data = [];
+            let rows = document.getElementsByTagName('tr');
+            for (let i = 0; i < rows.length; i++) {
+                let cols = rows[i].querySelectorAll('td,th');
+                let csvrow = [];
+                for (let j = 0; j < cols.length - 1; j++) { 
+                    csvrow.push(cols[j].innerText);
+                }
+                csv_data.push(csvrow.join(","));
+            }
+            let csv_string = csv_data.join("\n");
+            let link = document.createElement('a');
+            link.setAttribute('href', 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv_string));
+            link.setAttribute('download', 'isl_history.csv');
+            document.body.appendChild(link); link.click(); document.body.removeChild(link);
+        }
+    </script>
+    <style>@media print { .no-print, .navbar { display: none; } }</style>
+{% endblock %}

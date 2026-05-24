@@ -1,0 +1,292 @@
+{% extends "layout.html" %}
+
+{% block title %}Text to Sign Converter{% endblock %}
+
+{% block content %}
+    <!-- 1. NAVBAR -->
+    <div class="navbar">
+        <div class="logo-text"><i class="fas fa-sign-language"></i> ISL Translator</div>
+        <div class="nav-links">
+            <div class="system-status"><div class="status-dot"></div> Active</div>
+            
+            <div class="text-resizer">
+                <button class="text-btn" onclick="resizeText('down')">A-</button>
+                <button class="text-btn" onclick="resizeText('reset')">A</button>
+                <button class="text-btn" onclick="resizeText('up')">A+</button>
+            </div>
+
+            <a href="{{ url_for('index') }}">Home</a>
+            <!-- Current Page Label -->
+            <span style="color: var(--primary); font-weight: bold; padding: 8px 12px;">Avatar</span>
+            
+            <a href="{{ url_for('dictionary') }}">Dictionary</a>
+            <a href="{{ url_for('history') }}">History</a>
+            
+            <button class="nav-icon-btn" onclick="toggleFullScreen()"><i class="fas fa-expand"></i></button>
+            <button class="theme-btn" id="theme-toggle" onclick="toggleTheme()"><i class="fas fa-moon"></i></button>
+        </div>
+    </div>
+
+    <!-- 2. MAIN CONTENT -->
+    <div class="page-content">
+        <div class="converter-split">
+            
+            <!-- LEFT SIDE: INPUTS -->
+            <div class="input-section">
+                <div class="section-header">
+                    <i class="fas fa-keyboard"></i> Text / Voice Input
+                    <!-- SAVE BUTTON -->
+                    <button class="btn-3d btn-blue" onclick="saveCurrentText()" style="padding: 5px 15px; font-size: 11px; margin-left: auto;">
+                        <i class="fas fa-save"></i> Save
+                    </button>
+                </div>
+                
+                <div class="input-group">
+                    <input type="text" id="text-input" placeholder="Type here or use mic..." />
+                    
+                    <!-- CLEAR BUTTON -->
+                    <button class="btn-3d btn-gray" onclick="clearInput()" title="Clear Text">
+                        <i class="fas fa-trash"></i>
+                    </button>
+
+                    <!-- MIC BUTTON (With ID for Animation) -->
+                    <button class="btn-3d btn-red" id="mic-btn" onclick="startSpeechRecognition()" title="Mic">
+    <i class="fas fa-microphone"></i>
+</button>
+                </div>
+
+                <!-- SPEED CONTROL -->
+                <div class="speed-control">
+                    <span>Playback Speed:</span>
+                    <input type="range" id="speedRange" min="0.5" max="2.0" step="0.25" value="1.0" oninput="updateSpeed()">
+                    <span id="speedValue">1.0x</span>
+                </div>
+
+                <button class="btn-3d btn-green" onclick="prepareAnimation()" style="width: 100%; margin-top: 20px;">
+                    <i class="fas fa-play"></i> Translate & Sign
+                </button>
+
+                <!-- QUICK ACTIONS -->
+                <div class="quick-actions">
+                    <button class="chip-btn" onclick="quickPlay('Hello')">👋 Hello</button>
+                    <button class="chip-btn" onclick="quickPlay('Thank You')">🙏 Thank You</button>
+                    <button class="chip-btn" onclick="quickPlay('Help')">🚨 Help</button>
+                    <button class="chip-btn" onclick="quickPlay('Yes')">✅ Yes</button>
+                    <button class="chip-btn" onclick="quickPlay('No')">❌ No</button>
+                    <button class="chip-btn" onclick="quickPlay('What is your name')">❓ Name?</button>
+                </div>
+
+                <!-- TOKEN BADGES -->
+                <div class="keyword-box">
+                    <small style="text-transform: uppercase; letter-spacing: 1px;">Detected Tokens:</small>
+                    <div id="keywords-list"></div>
+                </div>
+            </div>
+
+            <!-- RIGHT SIDE: AVATAR PLAYER -->
+            <div class="avatar-section">
+                <div class="mode-badge" id="mode-badge">Visual Output</div>
+                <h3 id="player-title" style="color: white; margin-bottom: 15px;">ISL Interpreter</h3>
+                
+                <video id="avatar-video" muted playsinline style="display: none;">
+                    <source src="" type="video/mp4">
+                </video>
+
+                <img id="avatar-image" src="" style="display: none;">
+                
+                <div id="video-placeholder" style="text-align: center; color: rgba(255,255,255,0.3);">
+                    <i class="fas fa-user-circle" style="font-size: 80px; margin-bottom: 20px;"></i>
+                    <p>SYSTEM IDLE</p>
+                </div>
+
+                <div id="current-action-text">READY</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. JAVASCRIPT LOGIC -->
+    <script>
+        // Quick Play
+        function quickPlay(phrase) {
+            document.getElementById('text-input').value = phrase;
+            prepareAnimation();
+        }
+
+        // Save Function
+        function saveCurrentText() {
+            const text = document.getElementById('text-input').value;
+            if (!text.trim()) return showToast("Nothing to save!", "error");
+            
+            const taggedText = "[Avatar] " + text;
+            fetch('/save_sentence', {
+                method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ sentence: taggedText }),
+            })
+            .then(r => r.json()).then(d => { showToast("Saved to History!", "success"); });
+        }
+
+        // Clear Function
+        function clearInput() {
+            document.getElementById('text-input').value = "";
+            document.getElementById('keywords-list').innerHTML = "";
+            document.getElementById('current-action-text').innerText = "READY";
+            document.getElementById('player-title').innerText = "ISL Interpreter";
+            document.getElementById('avatar-video').style.display = 'none';
+            document.getElementById('avatar-image').style.display = 'none';
+            document.getElementById('video-placeholder').style.display = 'block';
+            document.getElementById('text-input').focus();
+            showToast("Input Cleared", "info");
+        }
+
+        // Speech Recognition (With Pulse Animation)
+        function startSpeechRecognition() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) return showToast("Browser not supported", "error");
+            
+            const recognition = new SpeechRecognition();
+            const micBtn = document.getElementById('mic-btn'); // Needs ID="mic-btn"
+            
+            recognition.lang = 'en-US';
+            recognition.start();
+            
+            // Start Animation
+            if(micBtn) micBtn.classList.add('mic-active');
+            document.getElementById('text-input').placeholder = "Listening...";
+            
+            recognition.onresult = function(event) {
+                const transcript = event.results[0][0].transcript;
+                document.getElementById('text-input').value = transcript;
+                document.getElementById('text-input').placeholder = "Type here or use mic...";
+                showToast("Voice Captured", "success");
+            };
+            
+            recognition.onend = function() {
+                // Stop Animation
+                if(micBtn) micBtn.classList.remove('mic-active');
+            };
+        }
+
+        let mediaQueue = []; let wordQueue = []; let currentIndex = 0;
+        
+        const videoPlayer = document.getElementById('avatar-video');
+        const imageViewer = document.getElementById('avatar-image');
+        const placeholder = document.getElementById('video-placeholder');
+        const actionText = document.getElementById('current-action-text');
+        const keywordsList = document.getElementById('keywords-list');
+        const titleLabel = document.getElementById('player-title');
+
+        async function prepareAnimation() {
+            const text = document.getElementById('text-input').value;
+            if (!text) return showToast("Please enter text!", "error");
+            actionText.innerText = "Processing...";
+            
+            try {
+                const response = await fetch('/animation', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ text: text })
+                });
+                const data = await response.json();
+                
+                mediaQueue = data.media;
+                wordQueue = data.words;
+
+                if (mediaQueue.length === 0) { 
+                    actionText.innerText = "No signs found."; 
+                    showToast("No matches found", "error"); 
+                    return; 
+                }
+
+                // Generate Tokens
+                keywordsList.innerHTML = "";
+                for(let i=0; i < mediaQueue.length; i++) {
+                    const path = mediaQueue[i]; const word = wordQueue[i];
+                    const span = document.createElement('span');
+                    span.className = "token-badge"; span.id = "token-" + i;
+                    
+                    if (path.toLowerCase().endsWith('.mp4')) { 
+                        span.classList.add("token-word"); 
+                        span.innerHTML = `<i class="fas fa-video"></i> ${word}`; 
+                    } else { 
+                        span.classList.add("token-letter"); 
+                        span.innerHTML = `<i class="fas fa-font"></i> ${word}`; 
+                    }
+                    keywordsList.appendChild(span);
+                }
+
+                currentIndex = 0; placeholder.style.display = 'none'; playNextItem();
+
+            } catch (error) { 
+                console.error("Fetch Error:", error); 
+                showToast("Server Error", "error"); 
+            }
+        }
+
+        function playNextItem() {
+            const allTokens = document.querySelectorAll('.token-badge');
+            allTokens.forEach(t => t.style.opacity = "0.5");
+            const currentToken = document.getElementById("token-" + currentIndex);
+            if(currentToken) { 
+                currentToken.style.opacity = "1"; 
+                currentToken.style.transform = "scale(1.1)"; 
+                currentToken.style.boxShadow = "0 0 10px rgba(255,255,255,0.5)"; 
+            }
+
+            if (currentIndex < mediaQueue.length) {
+                const currentPath = mediaQueue[currentIndex];
+                const currentWord = wordQueue[currentIndex];
+                actionText.innerText = "Signing: " + currentWord;
+
+                if (currentPath.toLowerCase().endsWith('.mp4')) {
+                    // VIDEO
+                    titleLabel.innerText = "3D Animation (Word)"; 
+                    titleLabel.style.color = "var(--secondary)";
+                    
+                    imageViewer.style.display = 'none'; videoPlayer.style.display = 'block';
+                    videoPlayer.src = currentPath; videoPlayer.load();
+                    videoPlayer.playbackRate = document.getElementById('speedRange').value;
+                    videoPlayer.play().catch(e => console.error("Auto-play error", e));
+
+                } else {
+                    // IMAGE
+                    titleLabel.innerText = "Finger Spelling (Letter)"; 
+                    titleLabel.style.color = "var(--accent)";
+
+                    videoPlayer.style.display = 'none'; videoPlayer.pause();
+                    imageViewer.style.display = 'block'; imageViewer.src = currentPath;
+                    
+                    setTimeout(() => {
+                        if(currentToken) { currentToken.style.transform = "scale(1)"; currentToken.style.boxShadow = "none"; }
+                        currentIndex++; playNextItem();
+                    }, 1500); 
+                }
+            } else {
+                // FINISH
+                actionText.innerText = "DONE"; 
+                titleLabel.innerText = "ISL Interpreter"; 
+                titleLabel.style.color = "white";
+                allTokens.forEach(t => t.style.opacity = "1");
+
+                setTimeout(() => {
+                    videoPlayer.style.display = 'none'; imageViewer.style.display = 'none';
+                    placeholder.style.display = 'block'; actionText.innerText = "READY";
+                }, 2000);
+            }
+        }
+
+        videoPlayer.onended = function() {
+            const currentToken = document.getElementById("token-" + currentIndex);
+            if(currentToken) { currentToken.style.transform = "scale(1)"; currentToken.style.boxShadow = "none"; }
+            currentIndex++; playNextItem();
+        };
+
+        function updateSpeed() {
+            const speed = document.getElementById('speedRange').value;
+            document.getElementById('speedValue').innerText = speed + "x";
+            videoPlayer.playbackRate = speed;
+        }
+        
+        videoPlayer.addEventListener('play', () => { 
+            videoPlayer.playbackRate = document.getElementById('speedRange').value; 
+        });
+    </script>
+{% endblock %}

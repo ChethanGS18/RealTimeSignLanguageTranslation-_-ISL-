@@ -1,0 +1,169 @@
+{% extends "layout.html" %}
+
+{% block title %}Sign Recognition{% endblock %}
+
+{% block content %}
+    <!-- 1. NAVBAR -->
+    <div class="navbar">
+        <div class="logo-text"><i class="fas fa-sign-language"></i> ISL Translator</div>
+        
+        <div class="nav-links">
+            <div class="system-status"><div class="status-dot"></div> Active</div>
+            
+            <div class="text-resizer">
+                <button class="text-btn" onclick="resizeText('down')">A-</button>
+                <button class="text-btn" onclick="resizeText('reset')">A</button>
+                <button class="text-btn" onclick="resizeText('up')">A+</button>
+            </div>
+
+            <a href="{{ url_for('index') }}">Home</a>
+            <span style="color: var(--primary); font-weight: bold; padding: 8px 12px;">Recognition</span>
+            <a href="{{ url_for('dictionary') }}">Dictionary</a>
+            <a href="{{ url_for('history') }}">History</a>
+            
+            <button class="nav-icon-btn" onclick="toggleFullScreen()"><i class="fas fa-expand"></i></button>
+            <button class="theme-btn" id="theme-toggle" onclick="toggleTheme()"><i class="fas fa-moon"></i></button>
+        </div>
+    </div>
+
+    <!-- 2. MAIN CONTENT -->
+    <div class="page-content">
+        <div class="recognition-split">
+            
+            <!-- LEFT SIDE: VIDEO -->
+            <div class="video-box">
+                <div class="section-header" style="justify-content: space-between;">
+                    <span><i class="fas fa-video"></i> Live Feed</span>
+                    <button id="cam-toggle" class="btn-3d btn-red" onclick="toggleCamera()" style="padding: 5px 15px; font-size: 12px;">
+                        <i class="fas fa-video-slash"></i> Stop Cam
+                    </button>
+                </div>
+
+                <div class="video-wrapper" style="position: relative; background: #000; border-radius: 12px; overflow: hidden;">
+                    <img id="video-stream" src="{{ url_for('video_feed') }}" style="width: 100%; display: block;">
+                    <div id="camera-off-msg" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: #64748b;">
+                        <i class="fas fa-camera-retro" style="font-size: 50px; margin-bottom: 10px;"></i>
+                        <p>Camera is Paused</p>
+                    </div>
+                </div>
+
+                <div style="margin-top: 15px; height: 6px; background: var(--bg-color); border-radius: 5px; overflow: hidden; border: 1px solid var(--border);">
+                    <div id="stability-bar" style="width: 0%; height: 100%; background: var(--secondary); transition: width 0.1s;"></div>
+                </div>
+                <p style="text-align: center; color: var(--text-muted); font-size: 12px; margin-top: 8px;">
+                    Hold sign steady for <b>2.0s</b> to auto-type
+                </p>
+            </div>
+
+            <!-- RIGHT SIDE: OUTPUT -->
+            <div class="text-box">
+                <div class="section-header"><i class="fas fa-terminal"></i> Translated Text</div>
+                
+                <div id="sentence-display" class="sentence-box"></div>
+                
+                <div class="info-box">
+                    <strong><i class="fas fa-info-circle"></i> Controls:</strong><br>
+                    Hold Sign (2s) to Type • Space for Gap • Backspace to Delete
+                </div>
+
+                <div style="display: flex; gap: 15px; margin-top: auto;">
+                    <button id="save-btn" class="btn-3d btn-blue">
+                        <i class="fas fa-save"></i> Save
+                    </button>
+                    
+                    <button onclick="speakSentence()" class="btn-3d btn-green">
+                        <i class="fas fa-volume-up"></i> Speak
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        const sentenceDisplay = document.getElementById('sentence-display');
+        const saveButton = document.getElementById('save-btn');
+        const stabilityBar = document.getElementById('stability-bar');
+        const videoElement = document.getElementById('video-stream');
+        const camMsg = document.getElementById('camera-off-msg');
+        const camBtn = document.getElementById('cam-toggle');
+        
+        let currentSentence = "";
+        let lastPrediction = "";
+        let stableCount = 0;
+        let isCameraOn = true;
+        const REQUIRED_STABILITY = 20; 
+
+        // Toggle Cam
+        function toggleCamera() {
+            if (isCameraOn) {
+                videoElement.style.display = "none"; camMsg.style.display = "block"; videoElement.src = "";
+                camBtn.innerHTML = '<i class="fas fa-video"></i> Start Cam'; camBtn.className = "btn-3d btn-green";
+                isCameraOn = false;
+                showToast("Camera Paused", "info");
+            } else {
+                videoElement.style.display = "block"; camMsg.style.display = "none"; videoElement.src = "{{ url_for('video_feed') }}";
+                camBtn.innerHTML = '<i class="fas fa-video-slash"></i> Stop Cam'; camBtn.className = "btn-3d btn-red";
+                isCameraOn = true;
+                showToast("Camera Active", "success");
+            }
+        }
+
+        // Text-to-Speech
+        function speakSentence() {
+            if (!currentSentence.trim()) return showToast("Nothing to speak!", "error");
+            const utterance = new SpeechSynthesisUtterance(currentSentence);
+            utterance.lang = 'en-US'; window.speechSynthesis.speak(utterance);
+        }
+
+        // Prediction Loop
+        async function checkPrediction() {
+            if (!isCameraOn) return;
+            try {
+                const response = await fetch('/get_prediction');
+                const data = await response.json();
+                const prediction = data.prediction;
+
+                if (prediction && prediction !== "NONE") {
+                    if (prediction === lastPrediction) {
+                        stableCount++;
+                        let progress = (stableCount / REQUIRED_STABILITY) * 100;
+                        stabilityBar.style.width = progress + "%";
+                        if (stableCount === REQUIRED_STABILITY) {
+                            currentSentence += prediction;
+                            sentenceDisplay.textContent = currentSentence;
+                            sentenceDisplay.style.borderColor = "var(--secondary)";
+                            setTimeout(() => sentenceDisplay.style.borderColor = "var(--border)", 200);
+                            stableCount = 0; stabilityBar.style.width = "0%";
+                        }
+                    } else { lastPrediction = prediction; stableCount = 0; stabilityBar.style.width = "0%"; }
+                } else { stableCount = 0; lastPrediction = ""; stabilityBar.style.width = "0%"; }
+            } catch (e) {}
+        }
+        setInterval(checkPrediction, 100);
+
+        // --- UPDATED SAVE LOGIC WITH TAG ---
+        function saveToHistory(sentence) {
+            if (sentence.trim() === "") return showToast("Empty sentence!", "error");
+            
+            // Add the [Sign] tag here
+            const taggedSentence = "[Sign] " + sentence;
+
+            fetch('/save_sentence', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ sentence: taggedSentence }), // Send tagged version
+            })
+            .then(r => r.json()).then(d => { 
+                showToast("Saved to Database!", "success");
+                currentSentence=""; sentenceDisplay.textContent=""; 
+            });
+        }
+
+        document.addEventListener('keydown', async (event) => {
+            if (event.key === ' ') { event.preventDefault(); currentSentence += ' '; sentenceDisplay.textContent = currentSentence; }
+            else if (event.key === 'Backspace') { event.preventDefault(); currentSentence = currentSentence.slice(0, -1); sentenceDisplay.textContent = currentSentence; }
+        });
+        saveButton.addEventListener('click', () => { saveToHistory(currentSentence); });
+    </script>
+{% endblock %}
